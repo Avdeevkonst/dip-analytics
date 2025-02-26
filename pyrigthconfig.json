@@ -1,0 +1,15 @@
+{
+    "exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        "venv",
+        "**.ruff_cache",
+        "**alembic/versions",
+        "tests/**"
+    ],
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false,
+    "pythonVersion": "3.11",
+    "pythonPlatform": "Linux"
+}
+  
