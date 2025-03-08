@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from src.config import settings
 from src.model_base import Base
-from src.models import Road, RoadCondition, RoadConditionHistory
+from src.models import Road, RoadCondition, Car
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -24,6 +24,11 @@ class Data:
     description: Mapped[str] = mapped_column(String(length=400), nullable=True)
 
 
+class Point:
+    latitude: Mapped[float] = mapped_column()
+    longitude: Mapped[float] = mapped_column()
+
+
 class General(Base, PrimaryKeyUUID, TimestampMixin):
     __abstract__ = True
 

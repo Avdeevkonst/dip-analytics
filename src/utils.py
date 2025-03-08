@@ -23,6 +23,17 @@ class Jam(enum.Enum):
     BLOCKED = "blocked"
 
 
+class Sort(enum.Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
+class Topics(enum.Enum):
+    CAR = "Car"
+    ROAD = "Road"
+    ROAD_CONDITION = "RoadCondition"
+
+
 def handle_error(
     exc_type: type[BaseException] | None,
     exc_val: BaseException | None,

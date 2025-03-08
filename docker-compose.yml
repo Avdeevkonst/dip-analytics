@@ -1,0 +1,20 @@
+services:
+  analytics:
+    container_name: dip_analytics
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8091:8091
+    networks:
+      - education
+    volumes:
+      - ./:/app
+
+networks:
+  education:
+    driver: bridge
+    external: true
+
+volumes:
+  static:
