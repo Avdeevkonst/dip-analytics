@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.utils import Sort
+from src.utils import Jam, Sort, Weather
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -48,3 +48,22 @@ class Pagination(BaseModel):
     sort: Sort
     page: int | None = Field(None, ge=1)
     limit: int | None = Field(None, ge=1)
+
+
+class RoadConditionBase(FromAttr):
+    road_id: UUID
+    weather_status: Weather
+    jam_status: Jam
+    name: str = Field(..., min_length=1, max_length=100)
+    description: str = Field(..., min_length=1, max_length=400)
+
+
+class RoadConditionCreate(RoadConditionBase): ...
+
+
+class GetRoadCondition(BaseModel):
+    id: UUID | None = None
+    road_id: UUID | None = None
+    weather_status: Weather | None = None
+    jam_status: Jam | None = None
+    name: str | None = None
