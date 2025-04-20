@@ -14,7 +14,12 @@ class Road(General, Data):
     start: Mapped[str] = mapped_column(String(255))
     end: Mapped[str] = mapped_column(String(255))
     length: Mapped[float] = mapped_column()
-    city: Mapped[str] = mapped_column(String(255), index=True)
+    city: Mapped[str] = mapped_column(String(255))
+
+    __table_args__ = (
+        Index("idx_road_city", "city"),
+        Index("idx_road_name", "name", unique=True),
+    )
 
 
 class RoadCondition(General, Data):
@@ -24,7 +29,15 @@ class RoadCondition(General, Data):
     weather_status: Mapped[str] = mapped_column(Enum(Weather))
     jam_status: Mapped[str] = mapped_column(Enum(Jam))
 
-    __table_args__ = (Index("idx_road_condition_road_id", "road_id"),)
+    __table_args__ = (
+        Index("idx_road_condition_road_id", "road_id"),
+        Index(
+            "idx_road_condition_created_at",
+            "created_at",
+            postgresql_using="btree",
+            postgresql_ops={"created_at": "DESC"},
+        ),
+    )
 
 
 class Car(General, Point):
