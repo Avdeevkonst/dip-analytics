@@ -14,7 +14,12 @@ class Road(General, Data):
     start: Mapped[str] = mapped_column(String(255))
     end: Mapped[str] = mapped_column(String(255))
     length: Mapped[float] = mapped_column()
-    city: Mapped[str] = mapped_column(String(255), index=True)
+    city: Mapped[str] = mapped_column(String(255))
+
+    __table_args__ = (
+        Index("idx_road_city", "city"),
+        Index("idx_road_name", "name", unique=True),
+    )
 
 
 class RoadCondition(General, Data):

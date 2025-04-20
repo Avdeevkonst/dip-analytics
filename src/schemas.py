@@ -67,3 +67,22 @@ class GetRoadCondition(BaseModel):
     weather_status: Weather | None = None
     jam_status: Jam | None = None
     name: str | None = None
+
+
+class RoadBase(FromAttr):
+    start: str = Field(..., min_length=1, max_length=255)
+    end: str = Field(..., min_length=1, max_length=255)
+    length: float
+    city: str = Field(..., min_length=1, max_length=255)
+    name: str = Field(..., min_length=1, max_length=100)
+    description: str = Field(..., min_length=1, max_length=400)
+
+
+class RoadCreate(RoadBase): ...
+
+
+class GetRoad(BaseModel):
+    id: UUID | None = None
+    city: str | None = None
+    name: str | None = None
+    length: float | None = None
