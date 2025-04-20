@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Generic, TypeVar
+from typing import TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,7 +9,7 @@ from src.utils import Sort
 T = TypeVar("T", bound=BaseModel)
 
 
-class ReturnPagination(BaseModel, Generic[T]):
+class ReturnPagination[T](BaseModel):
     items: list[T]
     total: int
     page: int

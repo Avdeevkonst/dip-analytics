@@ -2,12 +2,12 @@ from fastapi import HTTPException
 
 from src.models import Car
 from src.schemas import CarCreate, GetCar
-from src.services.db import CrudEntity, PgUnitOfWork
+from src.services.db import CrudEntity
 
 
 class CarCrud(CrudEntity):
-    def __init__(self, uow: PgUnitOfWork):
-        super().__init__(uow=uow, model=Car)
+    def __init__(self):
+        super().__init__(model=Car)
 
     async def create_car(self, car: CarCreate) -> Car:
         return await self.create_entity(car)

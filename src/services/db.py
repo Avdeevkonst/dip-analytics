@@ -94,13 +94,16 @@ class IUnitOfWorkBase(ABC):
 
 
 class PgUnitOfWork(IUnitOfWorkBase):
-    def __init__(self, db_url_postgresql: str) -> None:
-        self.db_url_postgresql = db_url_postgresql
-        self._session_factory = DatabaseConfig(db_url_postgresql).async_session_maker
+    def __init__(self) -> None:
+        self._session_factory = DatabaseConfig(settings.db_url_postgresql).async_session_maker
         self._async_session: AsyncSession
 
+    def activate(self):
+        if not isinstance(self._async_session, AsyncSession):
+            self._async_session = self._session_factory()
+
     async def __aenter__(self):
-        self._async_session = self._session_factory()
+        self.activate()
         return self
 
     async def __aexit__(
@@ -190,8 +193,8 @@ class Query:
 
 
 class CrudEntity(Generic[M], Query):
-    def __init__(self, uow: PgUnitOfWork, model: type[M]):
-        self.uow = uow
+    def __init__(self, model: type[M]):
+        self.uow = PgUnitOfWork()
         super().__init__(model=model)
 
     async def create_entity(self, payload: dict | BaseModel) -> M:
