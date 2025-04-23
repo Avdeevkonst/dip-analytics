@@ -7,7 +7,7 @@ logger.add("logs/{time:YYYY-MM-DD}.log", format="{time} {level} {message}", rota
 
 
 class Settings(BaseSettings):
-    PG_HOST: str = "172.18.0.2"
+    PG_HOST: str = "postgres"
     PG_PORT: str = "5432"
     PG_NAME: str = "dip_analytics"
     PG_USER: str = "postgres"

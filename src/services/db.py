@@ -278,3 +278,7 @@ class CrudEntity(Generic[M], Query):
         query = self.select()
         result = await self.uow.execute(query)
         return result.scalars().fetchall()  # pyright:ignore[reportReturnType]
+
+    async def get_by_query(self, query: Executable) -> list[M]:
+        result = await self.uow.execute(query)
+        return result.scalars().fetchall()  # pyright:ignore[reportReturnType]

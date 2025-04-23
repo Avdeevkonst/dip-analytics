@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt
 
 from src.utils import Jam, Sort, Weather
 
@@ -42,6 +42,10 @@ class GetCar(BaseModel):
     id: UUID | None = None
     plate_number: str | None = None
     model: str | None = None
+
+
+class GetCarByTimeRange(BaseModel):
+    range_time: PositiveInt
 
 
 class Pagination(BaseModel):
