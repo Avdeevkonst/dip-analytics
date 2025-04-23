@@ -7,17 +7,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from loguru import logger
 
+from src.analitycs.routers import router as traffic_router
+from src.services.kafka import kafka_broker
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await kafka_broker.connect()
+
     yield
+
+    await kafka_broker.close()
 
 
 app = FastAPI(title="Analytics API", version="0.1.0", lifespan=lifespan)
 
 
 v1_router = APIRouter(prefix="/api/v1")
-
+v1_router.include_router(traffic_router)
 
 app.include_router(v1_router)
 

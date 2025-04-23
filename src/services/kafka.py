@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from faststream.kafka.fastapi import KafkaRouter
+from faststream.kafka import KafkaBroker
 
 from src.config import settings
 
@@ -14,8 +14,4 @@ def deserializer(serialized: bytes) -> Any:
     return json.loads(serialized)
 
 
-kafka_router = KafkaRouter(
-    settings.KAFKA_BOOTSTRAP_SERVERS,
-    key_serializer=serializer,
-    value_serializer=serializer,
-)
+kafka_broker = KafkaBroker(settings.KAFKA_BOOTSTRAP_SERVERS)

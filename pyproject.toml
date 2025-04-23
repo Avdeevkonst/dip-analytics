@@ -42,4 +42,5 @@ dependencies = [
     "typing-extensions==4.12.2",
     "uvicorn==0.34.0",
     "virtualenv==20.29.3",
+    "websockets==12.0",
 ]

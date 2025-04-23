@@ -1,7 +1,10 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi import HTTPException
+from sqlalchemy import select
 
 from src.models import Car, Road, RoadCondition
-from src.schemas import CarCreate, GetCar, GetRoad, GetRoadCondition, RoadConditionCreate, RoadCreate
+from src.schemas import CarCreate, GetCar, GetCarByTimeRange, GetRoad, GetRoadCondition, RoadConditionCreate, RoadCreate
 from src.services.db import CrudEntity
 
 
@@ -14,6 +17,10 @@ class CarCrud(CrudEntity):
 
     async def get_car(self, conditions: GetCar) -> list[Car]:
         return await self.get_many(conditions)
+
+    async def get_car_by_time_range(self, conditions: GetCarByTimeRange) -> list[Car]:
+        query = select(Car).where(Car.created_at >= datetime.now(UTC) - timedelta(minutes=conditions.range_time))
+        return await self.get_by_query(query)
 
     async def delete_car(self, conditions: GetCar) -> None:
         if conditions.model is not None or conditions.plate_number is not None:
