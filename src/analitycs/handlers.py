@@ -1,14 +1,47 @@
+import typing
 from datetime import UTC, datetime, timedelta
+from functools import total_ordering
+from typing import Literal
 
 from loguru import logger
+
+S = Literal["LOW", "MEDIUM", "HIGH", "UNSTAGED"]
+D = typing.TypeVar("D", bound=dict[str, str | float | int])
+
+
+@total_ordering
+class State:
+    def __init__(self, state: S) -> None:
+        self.state = state
+        self.compare_value = {
+            "UNSTAGED": -1,
+            "LOW": 0,
+            "MEDIUM": 1,
+            "HIGH": 2,
+        }
+
+    def __eq__(self, value: object) -> bool:
+        return self.state == value
+
+    def __gt__(self, value: object) -> bool:
+        if not isinstance(value, str):
+            return NotImplemented
+
+        return self.compare_value[self.state] > self.compare_value[value]
+
+    def __lt__(self, value: object) -> bool:
+        if not isinstance(value, str):
+            return NotImplemented
+
+        return self.compare_value[self.state] < self.compare_value[value]
 
 
 class TrafficStateManager:
     def __init__(self):
         self.last_state_change: datetime | None = None
-        self.current_state: bool = False
+        self.current_state: S = "LOW"
         self.cooldown_minutes: int = 10
-        self._response_data: dict = {}
+        self._response_data: dict[str, str | float | int] = {}
 
     def can_change_state(self) -> bool:
         """
@@ -21,7 +54,7 @@ class TrafficStateManager:
         time_since_last_change = datetime.now(UTC) - self.last_state_change
         return time_since_last_change >= timedelta(minutes=self.cooldown_minutes)
 
-    def update_state(self, new_state: bool) -> bool:
+    def update_state(self, new_state: S) -> bool:
         """
         Update the state if cooldown period has passed.
         Returns True if state was updated, False if cooldown period hasn't passed.
@@ -37,7 +70,8 @@ class TrafficStateManager:
 
         return False
 
-    def get_state(self) -> bool:
+    @property
+    def get_state(self) -> S:
         """Get the current traffic state."""
         return self.current_state
 
@@ -48,11 +82,11 @@ class TrafficStateManager:
         return datetime.now(UTC) - self.last_state_change
 
     @property
-    def response_data(self) -> dict:
+    def response_data(self) -> dict[str, str | float | int]:
         return self._response_data
 
     @response_data.setter
-    def response_data(self, value: dict) -> None:
+    def response_data(self, value: dict[str, str | float | int]) -> None:
         self._response_data = value
 
 

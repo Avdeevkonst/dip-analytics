@@ -4,7 +4,7 @@ import contextlib
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from loguru import logger
 
-from src.analitycs.services import TrafficAnalysisService, traffic_state_manager
+from src.analitycs.handlers import traffic_state_manager
 
 router = APIRouter(prefix="/traffic", tags=["traffic"])
 
@@ -18,47 +18,31 @@ async def websocket_traffic_monitor(websocket: WebSocket):
     await websocket.accept()
     logger.info("WebSocket connection established")
 
-    service = TrafficAnalysisService()
     sleep_time = 60
     try:
         while True:
-            # Get current congestion data
-            # TODO: change direcly using to taskiq
-            congestion_data = await service.analyze_traffic_congestion()
-
-            # Determine new state based on congestion level
-            new_state = congestion_data["congestion_level"] == "HIGH"
-
-            # Try to update state (will only update if cooldown period has passed)
-            state_changed = traffic_state_manager.update_state(new_state)
-
-            # Get current state (either newly updated or existing)
-            current_state = traffic_state_manager.get_state()
-
-            # Calculate time until next possible state change
+            state = traffic_state_manager.get_state
             time_since_change = traffic_state_manager.get_time_since_last_change()
-            minutes_until_next_change = traffic_state_manager.cooldown_minutes - (
+
+            sleep_time = traffic_state_manager.cooldown_minutes - (
                 time_since_change.total_seconds() / 60 if time_since_change else 0
             )
+            sleep_time = 60 * 10 - sleep_time
+            if state != "UNSTAGED":
+                await websocket.send_json(
+                    {
+                        "state": state,
+                        "congestion_level": traffic_state_manager.response_data["congestion_level"],
+                    },
+                    mode="text",
+                )
 
-            # Send state update
-            await websocket.send_json(
-                {
-                    "state": current_state,
-                    "congestion_level": congestion_data["congestion_level"],
-                    "average_speed": congestion_data["average_speed"],
-                    "timestamp": congestion_data["timestamp"],
-                    "state_changed": state_changed,
-                    "minutes_until_next_change": max(0, minutes_until_next_change),
-                },
-                mode="text",
-            )
-
-            # Wait before next update
-            await asyncio.sleep(sleep_time)  # Update every minute
+            await asyncio.sleep(sleep_time)
 
     except WebSocketDisconnect:
         logger.info("WebSocket connection closed")
+        with contextlib.suppress(Exception):
+            await websocket.close()
 
     except Exception as e:  # noqa: BLE001
         logger.error(f"Error in WebSocket connection: {e!s}")
