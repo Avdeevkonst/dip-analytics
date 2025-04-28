@@ -4,7 +4,9 @@ from typing import Any, TypeVar
 
 from loguru import logger
 
-RT = TypeVar("RT")
+from src.analitycs.handlers import traffic_state_manager
+
+RT = TypeVar("RT", bound=dict[str, Any])
 
 
 def monitor_traffic_congestion(func: Callable[..., Coroutine[Any, Any, RT]]) -> Callable[..., Coroutine[Any, Any, RT]]:
@@ -16,15 +18,12 @@ def monitor_traffic_congestion(func: Callable[..., Coroutine[Any, Any, RT]]) -> 
     @wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> RT:
         try:
-            # Get current congestion data
+            result: RT = await func(*args, **kwargs)
 
-            # Determine state based on congestion level
-            result = await func(*args, **kwargs)
+            traffic_state_manager.response_data = result
+            traffic_state_manager.update_state(result.get("congestion_level", "LOW"))
 
-            # TODO: put state and result in class that will be handle by traffic state manager
-
-            # Call the decorated function with the state
-            return result  # noqa: RET504
+            return result
 
         except Exception as e:
             logger.error(f"Error in traffic monitoring: {e!s}")
