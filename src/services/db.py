@@ -1,9 +1,9 @@
-import typing
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from enum import Enum
 from types import TracebackType
 from typing import Any, Generic, TypeVar
+from typing import cast as type_cast
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -30,30 +30,17 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
+from project_utils import handle_error
 from src.config import settings
-from src.model_base import Base
-from src.utils import handle_error
+from src.model_base import Base, PrimaryKeyUUID
 
-M = TypeVar("M", bound=Base)
+ModelType = TypeVar("ModelType", bound=Base)
 
 
 class NotCreatedSessionError(NotImplementedError): ...
 
 
-class Singleton:  # pragma: no cover
-    def __new__(cls, *args: typing.Any, **kwds: typing.Any):
-        it = cls.__dict__.get("__it__")
-        if it is not None:
-            return it
-        cls.__it__ = it = object.__new__(cls)
-        it.init(*args, **kwds)
-        return it
-
-    def init(self, *args: typing.Any, **kwds: typing.Any):
-        pass
-
-
-class DatabaseConfig(Singleton):
+class DatabaseConfig:
     def __init__(
         self,
         db_url_postgresql: str,
@@ -142,7 +129,7 @@ class PgUnitOfWork(IUnitOfWorkBase):
             raise NotCreatedSessionError
         await self._async_session.flush()
 
-    async def refresh(self, instance: type[M]):
+    async def refresh(self, instance: type[ModelType]):
         if self._async_session is None:
             raise NotCreatedSessionError
         await self._async_session.refresh(instance)
@@ -158,8 +145,8 @@ class PgUnitOfWork(IUnitOfWorkBase):
         self._async_session.add(instance)
 
 
-class Query:
-    def __init__(self, model: type[M]) -> None:
+class Query(Generic[ModelType]):
+    def __init__(self, model: type[ModelType]) -> None:
         self.model = model
         self.conditions = []
 
@@ -179,25 +166,25 @@ class Query:
     def select(self, *condition: ColumnExpressionArgument) -> Select:
         return select(self.model).where(*condition)
 
-    def make_conditions(self, params: BaseModel):
-        logger.info(f"Making conditions {self.model!r} {params=}")
-        for k, v in params:
-            if v is not None and hasattr(self.model, k):
-                column = getattr(self.model, k, None)
+    def make_conditions(self, conditions: BaseModel):
+        logger.info(f"Making conditions {self.model!r} {conditions=}")
+        for key, value in conditions.model_dump().items():
+            if value is not None and hasattr(self.model, key):
+                column = getattr(self.model, key, None)
                 if column is None:
                     continue
-                if isinstance(v, Enum):
-                    self.conditions.append(cast(column, String) == v.value)
+                if isinstance(value, Enum):
+                    self.conditions.append(cast(column, String) == value.value)
                 else:
-                    self.conditions.append(column == v)
+                    self.conditions.append(column == value)
 
 
-class CrudEntity(Generic[M], Query):
-    def __init__(self, model: type[M]):
-        self.uow = PgUnitOfWork()
+class Crud(Generic[ModelType], Query[ModelType]):
+    def __init__(self, model: type[ModelType]):
         super().__init__(model=model)
+        self.uow = PgUnitOfWork()
 
-    async def create_entity(self, payload: dict | BaseModel) -> M:
+    async def create_entity(self, payload: dict | BaseModel) -> ModelType:
         if isinstance(payload, BaseModel):
             body = payload.model_dump()
         else:
@@ -209,9 +196,9 @@ class CrudEntity(Generic[M], Query):
         self.uow.add(stmt)
         await self.uow.flush()
 
-        return stmt  # pyright: ignore[reportReturnType]
+        return stmt
 
-    async def update_entity(self, payload: dict | BaseModel, conditions: BaseModel) -> M:
+    async def update_entity(self, payload: dict | BaseModel, conditions: BaseModel) -> ModelType:
         if isinstance(payload, BaseModel):
             body = payload.model_dump()
         else:
@@ -220,9 +207,10 @@ class CrudEntity(Generic[M], Query):
         self.make_conditions(conditions)
 
         query = self.update(*self.conditions, body=body)
-        result = await self.uow.execute(query)
+        result_query = await self.uow.execute(query)
         await self.uow.flush()
-        return result.scalar_one()
+        response = result_query.scalar_one()
+        return type_cast("ModelType", response)
 
     async def delete_entity(self, conditions: BaseModel) -> None:
         self.make_conditions(conditions)
@@ -230,28 +218,34 @@ class CrudEntity(Generic[M], Query):
         await self.uow.execute(query)
         await self.uow.flush()
 
-    async def get_entity(self, r_id: UUID) -> M:
-        conditions = self.model.id == r_id  # pyright: ignore[reportAttributeAccessIssue]
+
+class CrudEntity(Crud[ModelType]):
+    def __init__(self, model: type[ModelType]):
+        self.uow = PgUnitOfWork()
+        super().__init__(model=model)
+
+    async def get_entity(self, r_id: UUID) -> ModelType:
+        model = type_cast("type[PrimaryKeyUUID]", self.model)
+        conditions = model.id == r_id
         query = self.select(conditions)
 
-        result = await self.uow.execute(query)
+        result_query = await self.uow.execute(query)
+        response = result_query.scalar_one()
+        return type_cast("ModelType", response)
 
-        return result.scalar_one()
-
-    async def get_entity_by_conditions(self, conditions: BaseModel) -> M:
+    async def get_entity_by_conditions(self, conditions: BaseModel) -> ModelType:
         """Get one row by conditions
         :param conditions:
         :return: self.model
         """
-
         self.make_conditions(conditions)
         query = self.select(*self.conditions)
 
-        result = await self.uow.execute(query)
+        result_query = await self.uow.execute(query)
+        response = result_query.scalar_one()
+        return type_cast("ModelType", response)
 
-        return result.scalar_one()
-
-    async def one_or_none(self, conditions: BaseModel) -> M | None:
+    async def one_or_none(self, conditions: BaseModel) -> ModelType | None:
         """Get one row by conditions if exists else return None
         :param conditions:
         :return: self.model
@@ -259,11 +253,11 @@ class CrudEntity(Generic[M], Query):
         self.make_conditions(conditions)
         query = self.select(*self.conditions)
 
-        result = await self.uow.execute(query)
+        result_query = await self.uow.execute(query)
+        response = result_query.scalar_one_or_none()
+        return type_cast("ModelType | None", response)
 
-        return result.scalar_one_or_none()
-
-    async def get_many(self, conditions: BaseModel) -> list[M]:
+    async def get_many(self, conditions: BaseModel) -> list[ModelType]:
         """Get all rows by conditions
         :param conditions:
         :return: list[self.model]
@@ -271,14 +265,17 @@ class CrudEntity(Generic[M], Query):
         self.make_conditions(conditions)
         query = self.select(*self.conditions)
 
-        result = await self.uow.execute(query)
-        return result.scalars().fetchall()  # pyright:ignore[reportReturnType]
+        result_query = await self.uow.execute(query)
+        response = result_query.scalars().fetchall()
+        return type_cast("list[ModelType]", response)
 
-    async def get_all(self) -> list[M]:
+    async def get_all(self) -> list[ModelType]:
         query = self.select()
-        result = await self.uow.execute(query)
-        return result.scalars().fetchall()  # pyright:ignore[reportReturnType]
+        result_query = await self.uow.execute(query)
+        response = result_query.scalars().fetchall()
+        return type_cast("list[ModelType]", response)
 
-    async def get_by_query(self, query: Executable) -> list[M]:
-        result = await self.uow.execute(query)
-        return result.scalars().fetchall()  # pyright:ignore[reportReturnType]
+    async def get_by_query(self, query: Executable) -> list[ModelType]:
+        result_query = await self.uow.execute(query)
+        response = result_query.scalars().fetchall()
+        return type_cast("list[ModelType]", response)

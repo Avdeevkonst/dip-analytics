@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy import select
 
 from src.models import Car, Road, RoadCondition
@@ -8,7 +8,7 @@ from src.schemas import CarCreate, GetCar, GetCarByTimeRange, GetRoad, GetRoadCo
 from src.services.db import CrudEntity
 
 
-class CarCrud(CrudEntity):
+class CarCrud(CrudEntity[Car]):
     def __init__(self):
         super().__init__(model=Car)
 
@@ -19,16 +19,19 @@ class CarCrud(CrudEntity):
         return await self.get_many(conditions)
 
     async def get_car_by_time_range(self, conditions: GetCarByTimeRange) -> list[Car]:
-        query = select(Car).where(Car.created_at >= datetime.now(UTC) - timedelta(minutes=conditions.range_time))
+        time_to_select = datetime.now(UTC) - timedelta(minutes=conditions.range_time)
+        query = select(Car).where(Car.created_at >= time_to_select)
         return await self.get_by_query(query)
 
     async def delete_car(self, conditions: GetCar) -> None:
         if conditions.model is not None or conditions.plate_number is not None:
-            raise HTTPException(status_code=400, detail="Cannot delete car by model or plate number")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete car by model or plate number"
+            )
         await self.delete_entity(conditions)
 
 
-class RoadConditionCrud(CrudEntity):
+class RoadConditionCrud(CrudEntity[RoadCondition]):
     def __init__(self):
         super().__init__(model=RoadCondition)
 
@@ -40,11 +43,13 @@ class RoadConditionCrud(CrudEntity):
 
     async def delete_road_condition(self, conditions: GetRoadCondition) -> None:
         if conditions.road_id is not None:
-            raise HTTPException(status_code=400, detail="Cannot delete road condition by road id")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete road condition by road id"
+            )
         await self.delete_entity(conditions)
 
 
-class RoadCrud(CrudEntity):
+class RoadCrud(CrudEntity[Road]):
     def __init__(self):
         super().__init__(model=Road)
 

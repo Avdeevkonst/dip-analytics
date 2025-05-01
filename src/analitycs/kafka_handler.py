@@ -2,11 +2,11 @@ from faststream import FastStream
 from faststream.kafka import KafkaBroker
 from loguru import logger
 
+from project_utils import Topics
 from src.analitycs.services import CarService, RoadConditionService, RoadService
 from src.config import settings
 from src.schemas import CarCreate, RoadConditionCreate, RoadCreate
 from src.services.kafka import serializer
-from src.utils import Topics
 
 broker = KafkaBroker(
     settings.KAFKA_BOOTSTRAP_SERVERS,

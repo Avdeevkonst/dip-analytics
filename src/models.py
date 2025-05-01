@@ -3,8 +3,8 @@ from uuid import UUID
 from sqlalchemy import Enum, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from project_utils import Jam, Weather
 from src.model_base import Data, General, Point
-from src.utils import Jam, Weather
 
 
 class Base(DeclarativeBase): ...

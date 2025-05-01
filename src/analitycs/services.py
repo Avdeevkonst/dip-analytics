@@ -7,6 +7,12 @@ from src.models import Car, Road, RoadCondition
 from src.schemas import CarCreate, GetCar, GetCarByTimeRange, GetRoad, GetRoadCondition, RoadConditionCreate, RoadCreate
 from src.services.db import PgUnitOfWork
 
+HIGH = 5
+MEDIUM = 20
+LOW = 40
+RADIUS = 6371
+SECONDS_IN_HOUR = 3600
+
 
 class CarService:
     def __init__(self) -> None:
@@ -19,14 +25,14 @@ class CarService:
         await self.uow.commit()
         return car
 
-    async def delete_car(self, params: GetCar) -> None:
+    async def delete_car(self, conditions: GetCar) -> None:
         self.uow.activate()
-        await self.crud.delete_car(params)
+        await self.crud.delete_car(conditions)
         await self.uow.commit()
 
-    async def get_car(self, params: GetCar) -> list[Car]:
+    async def get_car(self, conditions: GetCar) -> list[Car]:
         self.uow.activate()
-        return await self.crud.get_car(params)
+        return await self.crud.get_car(conditions)
 
 
 class RoadConditionService:
@@ -40,14 +46,14 @@ class RoadConditionService:
         await self.uow.commit()
         return road_condition
 
-    async def delete_road_condition(self, params: GetRoadCondition) -> None:
+    async def delete_road_condition(self, conditions: GetRoadCondition) -> None:
         self.uow.activate()
-        await self.crud.delete_road_condition(params)
+        await self.crud.delete_road_condition(conditions)
         await self.uow.commit()
 
-    async def get_road_condition(self, params: GetRoadCondition) -> list[RoadCondition]:
+    async def get_road_condition(self, conditions: GetRoadCondition) -> list[RoadCondition]:
         self.uow.activate()
-        return await self.crud.get_road_condition(params)
+        return await self.crud.get_road_condition(conditions)
 
 
 class RoadService:
@@ -61,14 +67,14 @@ class RoadService:
         await self.uow.commit()
         return road
 
-    async def delete_road(self, params: GetRoad) -> None:
+    async def delete_road(self, conditions: GetRoad) -> None:
         self.uow.activate()
-        await self.crud.delete_road(params)
+        await self.crud.delete_road(conditions)
         await self.uow.commit()
 
-    async def get_road(self, params: GetRoad) -> list[Road]:
+    async def get_road(self, conditions: GetRoad) -> list[Road]:
         self.uow.activate()
-        return await self.crud.get_road(params)
+        return await self.crud.get_road(conditions)
 
 
 class TrafficAnalysisService:
@@ -96,49 +102,65 @@ class TrafficAnalysisService:
             }
 
         # Calculate average speed
-        total_speed = sum(car.avarage_speed for car in recent_cars)
-        average_speed = total_speed / len(recent_cars)
-
+        average_speed = calculate_average_speed(recent_cars)
         # Analyze location changes
-        location_changes = []
-        for i in range(len(recent_cars) - 1):
-            car1 = recent_cars[i]
-            car2 = recent_cars[i + 1]
-            if car1.plate_number == car2.plate_number:
-                R = 6371
-
-                lat1, lon1 = math.radians(car1.latitude), math.radians(car1.longitude)
-                lat2, lon2 = math.radians(car2.latitude), math.radians(car2.longitude)
-
-                dlat = lat2 - lat1
-                dlon = lon2 - lon1
-
-                a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
-                c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-                distance = R * c
-
-                time_diff = (car2.created_at - car1.created_at).total_seconds() / 3600
-
-                if time_diff > 0:
-                    speed = distance / time_diff
-                    location_changes.append(speed)
-
-        if not location_changes:
-            congestion_level = "LOW"
-        else:
-            avg_location_speed = sum(location_changes) / len(location_changes)
-            match avg_location_speed:
-                case avg_location_speed if avg_location_speed < 5:
-                    congestion_level = "HIGH"
-                case avg_location_speed if avg_location_speed < 20:
-                    congestion_level = "MEDIUM"
-                case _:
-                    congestion_level = "LOW"
+        location_changes = calculate_distance(recent_cars)
+        avg_location_speed = sum(location_changes) / len(location_changes)
+        congestion_level = calculate_congestion_level(average_speed)
 
         return {
             "congestion_level": congestion_level,
             "average_speed": round(average_speed, 2),
             "car_count": len(recent_cars),
-            "location_based_speed": round(avg_location_speed, 2) if location_changes else 0,
+            "location_based_speed": round(avg_location_speed, 2),
             "timestamp": datetime.now(UTC).isoformat(),
         }
+
+
+def calculate_distance(recent_cars: list[Car]) -> list[float]:
+    location_changes = []
+    # find the same car and put list of it in the loc list
+    # TODO: rework algorithm to find the same car
+
+    for car in range(len(recent_cars) - 1):
+        car1 = recent_cars[car]
+        car2 = recent_cars[car + 1]
+        if car1.plate_number == car2.plate_number:
+            time_diff = calculate_time_diff(car1, car2)
+
+            if time_diff > 0:
+                distance = calculate_radius(car1, car2)
+                speed = distance / time_diff
+                location_changes.append(speed)
+
+    return location_changes
+
+
+def calculate_average_speed(recent_cars: list[Car]) -> float:
+    total_speed = sum(car.avarage_speed for car in recent_cars)
+    return total_speed / len(recent_cars)
+
+
+def calculate_congestion_level(average_speed: float) -> str:
+    if average_speed < HIGH:
+        return "HIGH"
+    elif average_speed < MEDIUM:
+        return "MEDIUM"
+    else:
+        return "LOW"
+
+
+def calculate_radius(car1: Car, car2: Car) -> float:
+    lat1, lon1 = math.radians(car1.latitude), math.radians(car1.longitude)
+    lat2, lon2 = math.radians(car2.latitude), math.radians(car2.longitude)
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return RADIUS * c
+
+
+def calculate_time_diff(car1: Car, car2: Car) -> float:
+    return (car2.created_at - car1.created_at).total_seconds() / SECONDS_IN_HOUR

@@ -1,17 +1,15 @@
 import typing
 from datetime import UTC, datetime, timedelta
 from functools import total_ordering
-from typing import Literal
 
 from loguru import logger
 
-S = Literal["LOW", "MEDIUM", "HIGH", "UNSTAGED"]
-D = typing.TypeVar("D", bound=dict[str, str | float | int])
+VARIANT_STATE = typing.Literal["LOW", "MEDIUM", "HIGH", "UNSTAGED"]
 
 
 @total_ordering
 class State:
-    def __init__(self, state: S) -> None:
+    def __init__(self, state: VARIANT_STATE) -> None:
         self.state = state
         self.compare_value = {
             "UNSTAGED": -1,
@@ -20,28 +18,34 @@ class State:
             "HIGH": 2,
         }
 
-    def __eq__(self, value: object) -> bool:
-        return self.state == value
-
-    def __gt__(self, value: object) -> bool:
-        if not isinstance(value, str):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, str):
             return NotImplemented
-
-        return self.compare_value[self.state] > self.compare_value[value]
-
-    def __lt__(self, value: object) -> bool:
-        if not isinstance(value, str):
+        if other not in self.compare_value:
             return NotImplemented
+        return self.state == other
 
-        return self.compare_value[self.state] < self.compare_value[value]
+    def __gt__(self, other: object) -> bool:
+        if not isinstance(other, str):
+            return NotImplemented
+        if other not in self.compare_value:
+            return NotImplemented
+        return self.compare_value[self.state] > self.compare_value[other]
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, str):
+            return NotImplemented
+        if other not in self.compare_value:
+            return NotImplemented
+        return self.compare_value[self.state] < self.compare_value[other]
 
 
 class TrafficStateManager:
     def __init__(self):
         self.last_state_change: datetime | None = None
-        self.current_state: S = "LOW"
+        self.current_state: State = State("LOW")
         self.cooldown_minutes: int = 10
-        self._response_data: dict[str, str | float | int] = {}
+        self._response_data = {}
 
     def can_change_state(self) -> bool:
         """
@@ -54,7 +58,7 @@ class TrafficStateManager:
         time_since_last_change = datetime.now(UTC) - self.last_state_change
         return time_since_last_change >= timedelta(minutes=self.cooldown_minutes)
 
-    def update_state(self, new_state: S) -> bool:
+    def update_state(self, new_state: State) -> bool:
         """
         Update the state if cooldown period has passed.
         Returns True if state was updated, False if cooldown period hasn't passed.
@@ -71,7 +75,7 @@ class TrafficStateManager:
         return False
 
     @property
-    def get_state(self) -> S:
+    def get_state(self) -> State:
         """Get the current traffic state."""
         return self.current_state
 
@@ -86,8 +90,8 @@ class TrafficStateManager:
         return self._response_data
 
     @response_data.setter
-    def response_data(self, value: dict[str, str | float | int]) -> None:
-        self._response_data = value
+    def response_data(self, payload: dict[str, str | float | int]) -> None:
+        self._response_data = payload
 
 
 # Create a singleton instance

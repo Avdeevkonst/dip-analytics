@@ -1,7 +1,7 @@
 from loguru import logger
 from pydantic_settings import BaseSettings
 
-from src.utils import Topics
+from project_utils import Topics
 
 logger.add("logs/{time:YYYY-MM-DD}.log", format="{time} {level} {message}", rotation="1 week")
 

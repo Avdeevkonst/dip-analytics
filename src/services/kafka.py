@@ -6,8 +6,8 @@ from faststream.kafka import KafkaBroker
 from src.config import settings
 
 
-def serializer(value: Any) -> bytes:
-    return json.dumps(value).encode()
+def serializer(to_serialize: Any) -> bytes:
+    return json.dumps(to_serialize).encode()
 
 
 def deserializer(serialized: bytes) -> Any:

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt
 
-from src.utils import Jam, Sort, Weather
+from project_utils import Jam, Sort, Weather
 
 T = TypeVar("T", bound=BaseModel)
 
