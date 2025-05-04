@@ -18,17 +18,26 @@ app = FastStream(broker)
 
 @broker.subscriber(Topics.CAR.value)
 async def create_car(msg: CarCreate):
+    """
+    Subscriber for creating a car.
+    """
     await CarService().create_car(payload=msg)
     logger.info(f"Car created: {msg}")
 
 
 @broker.subscriber(Topics.ROAD_CONDITION.value)
 async def create_road_condition(msg: RoadConditionCreate):
+    """
+    Subscriber for creating a road condition.
+    """
     await RoadConditionService().create_road_condition(payload=msg)
     logger.info(f"Road condition created: {msg}")
 
 
 @broker.subscriber(Topics.ROAD.value)
 async def create_road(msg: RoadCreate):
+    """
+    Subscriber for creating a road.
+    """
     await RoadService().create_road(payload=msg)
     logger.info(f"Road created: {msg}")

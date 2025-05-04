@@ -7,17 +7,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from loguru import logger
 
+from src.analitycs.kafka_handler import broker
 from src.analitycs.routers import router as traffic_router
-from src.services.kafka import kafka_broker
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await kafka_broker.connect()
+    """
+    Lifespan for the FastAPI application.
+    1. Connects to the Kafka broker.
+    2. Closes the Kafka broker when the application is stopped.
+    """
+    await broker.connect()
 
     yield
 
-    await kafka_broker.close()
+    await broker.close()
 
 
 app = FastAPI(title="Analytics API", version="0.1.0", lifespan=lifespan)
@@ -39,6 +44,10 @@ app.add_middleware(
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next: Any):
+    """
+    Middleware for logging request information.
+    Logs the start time of the request and the time it took to process.
+    """
     logger.info(f"Start processing request {request.url}")
     logger.info(f"Client ip_address:{request.headers.get('x-forwarded-for', None)}")
     start_time = time.time()

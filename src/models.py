@@ -1,16 +1,17 @@
 from uuid import UUID
 
 from sqlalchemy import Enum, ForeignKey, Index, Integer, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
 from project_utils import Jam, Weather
 from src.model_base import Data, General, Point
 
 
-class Base(DeclarativeBase): ...
-
-
 class Road(General, Data):
+    """
+    Road model.
+    """
+
     start: Mapped[str] = mapped_column(String(255))
     end: Mapped[str] = mapped_column(String(255))
     length: Mapped[float] = mapped_column()
@@ -23,6 +24,10 @@ class Road(General, Data):
 
 
 class RoadCondition(General, Data):
+    """
+    Road condition model.
+    """
+
     road_id: Mapped[UUID] = mapped_column(
         ForeignKey("road.id"),
     )
@@ -41,6 +46,10 @@ class RoadCondition(General, Data):
 
 
 class Car(General, Point):
+    """
+    Car model.
+    """
+
     plate_number: Mapped[str] = mapped_column(String(255))
     model: Mapped[str] = mapped_column(String(255))
     avarage_speed: Mapped[int] = mapped_column(Integer())

@@ -9,6 +9,10 @@ VARIANT_STATE = typing.Literal["LOW", "MEDIUM", "HIGH", "UNSTAGED"]
 
 @total_ordering
 class State:
+    """
+    State class for traffic state.
+    """
+
     def __init__(self, state: VARIANT_STATE) -> None:
         self.state = state
         self.compare_value = {
@@ -41,6 +45,10 @@ class State:
 
 
 class TrafficStateManager:
+    """
+    Traffic state manager class.
+    """
+
     def __init__(self):
         self.last_state_change: datetime | None = None
         self.current_state: State = State("LOW")
@@ -87,12 +95,13 @@ class TrafficStateManager:
 
     @property
     def response_data(self) -> dict[str, str | float | int]:
+        """Get the response data."""
         return self._response_data
 
     @response_data.setter
     def response_data(self, payload: dict[str, str | float | int]) -> None:
+        """Set the response data."""
         self._response_data = payload
 
 
-# Create a singleton instance
 traffic_state_manager = TrafficStateManager()

@@ -167,6 +167,10 @@ class Query(Generic[ModelType]):
         return select(self.model).where(*condition)
 
     def make_conditions(self, conditions: BaseModel):
+        """
+        Make conditions for the query by pydantic model fields.
+        If the field is not None and the model has the field, add the condition to the query.
+        """
         logger.info(f"Making conditions {self.model!r} {conditions=}")
         for key, value in conditions.model_dump().items():
             if value is not None and hasattr(self.model, key):
@@ -185,6 +189,9 @@ class Crud(Generic[ModelType], Query[ModelType]):
         self.uow = PgUnitOfWork()
 
     async def create_entity(self, payload: dict | BaseModel) -> ModelType:
+        """
+        Create an entity.
+        """
         if isinstance(payload, BaseModel):
             body = payload.model_dump()
         else:
@@ -199,6 +206,9 @@ class Crud(Generic[ModelType], Query[ModelType]):
         return stmt
 
     async def update_entity(self, payload: dict | BaseModel, conditions: BaseModel) -> ModelType:
+        """
+        Update an entity.
+        """
         if isinstance(payload, BaseModel):
             body = payload.model_dump()
         else:
@@ -213,6 +223,9 @@ class Crud(Generic[ModelType], Query[ModelType]):
         return type_cast("ModelType", response)
 
     async def delete_entity(self, conditions: BaseModel) -> None:
+        """
+        Delete an entity.
+        """
         self.make_conditions(conditions)
         query = self.delete(*self.conditions)
         await self.uow.execute(query)
