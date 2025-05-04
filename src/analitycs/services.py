@@ -15,69 +15,112 @@ SECONDS_IN_HOUR = 3600
 
 
 class CarService:
+    """
+    Service for creating, deleting, and getting cars.
+    """
+
     def __init__(self) -> None:
         self.uow: PgUnitOfWork = PgUnitOfWork()
         self.crud: CarCrud = CarCrud()
 
     async def create_car(self, payload: CarCreate) -> Car:
+        """
+        Create a car.
+        """
         self.uow.activate()
         car = await self.crud.create_car(payload)
         await self.uow.commit()
         return car
 
     async def delete_car(self, conditions: GetCar) -> None:
+        """
+        Delete a car.
+        """
         self.uow.activate()
         await self.crud.delete_car(conditions)
         await self.uow.commit()
 
     async def get_car(self, conditions: GetCar) -> list[Car]:
+        """
+        Get a car.
+        """
         self.uow.activate()
         return await self.crud.get_car(conditions)
 
 
 class RoadConditionService:
+    """
+    Service for creating, deleting, and getting road conditions.
+    """
+
     def __init__(self) -> None:
         self.uow: PgUnitOfWork = PgUnitOfWork()
         self.crud: RoadConditionCrud = RoadConditionCrud()
 
     async def create_road_condition(self, payload: RoadConditionCreate) -> RoadCondition:
+        """
+        Create a road condition.
+        """
         self.uow.activate()
         road_condition = await self.crud.create_road_condition(payload)
         await self.uow.commit()
         return road_condition
 
     async def delete_road_condition(self, conditions: GetRoadCondition) -> None:
+        """
+        Delete a road condition.
+        """
         self.uow.activate()
         await self.crud.delete_road_condition(conditions)
         await self.uow.commit()
 
     async def get_road_condition(self, conditions: GetRoadCondition) -> list[RoadCondition]:
+        """
+        Get a road condition.
+        """
         self.uow.activate()
         return await self.crud.get_road_condition(conditions)
 
 
 class RoadService:
+    """
+    Service for creating, deleting, and getting roads.
+    """
+
     def __init__(self) -> None:
         self.uow: PgUnitOfWork = PgUnitOfWork()
         self.crud: RoadCrud = RoadCrud()
 
     async def create_road(self, payload: RoadCreate) -> Road:
+        """
+        Create a road.
+        """
         self.uow.activate()
         road = await self.crud.create_road(payload)
         await self.uow.commit()
         return road
 
     async def delete_road(self, conditions: GetRoad) -> None:
+        """
+        Delete a road.
+        """
         self.uow.activate()
         await self.crud.delete_road(conditions)
         await self.uow.commit()
 
     async def get_road(self, conditions: GetRoad) -> list[Road]:
+        """
+        Get a road.
+        """
         self.uow.activate()
         return await self.crud.get_road(conditions)
 
 
 class TrafficAnalysisService:
+    """
+    Service for analyzing traffic congestion.
+    """
+
     def __init__(self) -> None:
         self.uow: PgUnitOfWork = PgUnitOfWork()
         self.crud: CarCrud = CarCrud()
@@ -129,7 +172,7 @@ def calculate_distance(recent_cars: list[Car]) -> list[float]:
             time_diff = calculate_time_diff(car1, car2)
 
             if time_diff > 0:
-                distance = calculate_radius(car1, car2)
+                distance = calculate_distance_between_two_cars(car1, car2)
                 speed = distance / time_diff
                 location_changes.append(speed)
 
@@ -137,11 +180,17 @@ def calculate_distance(recent_cars: list[Car]) -> list[float]:
 
 
 def calculate_average_speed(recent_cars: list[Car]) -> float:
+    """
+    Calculate the average speed of the cars.
+    """
     total_speed = sum(car.avarage_speed for car in recent_cars)
     return total_speed / len(recent_cars)
 
 
 def calculate_congestion_level(average_speed: float) -> str:
+    """
+    Calculate the congestion level based on the average speed.
+    """
     if average_speed < HIGH:
         return "HIGH"
     elif average_speed < MEDIUM:
@@ -150,9 +199,14 @@ def calculate_congestion_level(average_speed: float) -> str:
         return "LOW"
 
 
-def calculate_radius(car1: Car, car2: Car) -> float:
-    lat1, lon1 = math.radians(car1.latitude), math.radians(car1.longitude)
-    lat2, lon2 = math.radians(car2.latitude), math.radians(car2.longitude)
+def calculate_distance_between_two_cars(car1: Car, car2: Car) -> float:
+    """
+    Calculate the distance between two cars.
+    """
+    lat1 = math.radians(car1.latitude)
+    lon1 = math.radians(car1.longitude)
+    lat2 = math.radians(car2.latitude)
+    lon2 = math.radians(car2.longitude)
 
     dlat = lat2 - lat1
     dlon = lon2 - lon1
@@ -163,4 +217,7 @@ def calculate_radius(car1: Car, car2: Car) -> float:
 
 
 def calculate_time_diff(car1: Car, car2: Car) -> float:
+    """
+    Calculate the time difference between two cars.
+    """
     return (car2.created_at - car1.created_at).total_seconds() / SECONDS_IN_HOUR
