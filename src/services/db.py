@@ -30,29 +30,40 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from project_utils import handle_error
+from src.commons.model_base import Base, PrimaryKeyUUID
+from src.commons.project_utils import handle_error
 from src.config import settings
-from src.model_base import Base, PrimaryKeyUUID
 
 ModelType = TypeVar("ModelType", bound=Base)
 
 
-class NotCreatedSessionError(NotImplementedError): ...
+class NotCreatedSessionError(NotImplementedError):
+    """Raised when trying to use a session that hasn't been created."""
 
 
 class DatabaseConfig:
-    def __init__(
-        self,
-        db_url_postgresql: str,
-    ):
+    """Database configuration and connection management."""
+
+    def __init__(self, db_url_postgresql: str) -> None:
+        """Initialize database configuration.
+
+        Args:
+            db_url_postgresql: PostgreSQL connection URL
+        """
         self.db_url_postgresql = db_url_postgresql
 
     @property
     def engine(self):
-        return create_async_engine(self.db_url_postgresql, echo=settings.ECHO, poolclass=NullPool)
+        """Create and return SQLAlchemy async engine instance."""
+        return create_async_engine(
+            self.db_url_postgresql,
+            echo=settings.ECHO,
+            poolclass=NullPool,
+        )
 
     @property
     def async_session_maker(self):
+        """Create and return async session factory."""
         return async_sessionmaker(
             self.engine,
             class_=AsyncSession,
@@ -61,6 +72,8 @@ class DatabaseConfig:
 
 
 class IUnitOfWorkBase(ABC):
+    """Base interface for Unit of Work pattern implementation."""
+
     async def __aenter__(self):
         return self
 
@@ -68,28 +81,36 @@ class IUnitOfWorkBase(ABC):
         await self.rollback()
 
     @abstractmethod
-    async def commit(self):
+    async def commit(self) -> None:
+        """Commit the current transaction."""
         raise NotImplementedError
 
     @abstractmethod
-    async def close(self):
+    async def close(self) -> None:
+        """Close the current session."""
         raise NotImplementedError
 
     @abstractmethod
-    async def rollback(self):
+    async def rollback(self) -> None:
+        """Rollback the current transaction."""
         raise NotImplementedError
 
 
 class PgUnitOfWork(IUnitOfWorkBase):
-    def __init__(self) -> None:
-        self._session_factory = DatabaseConfig(settings.db_url_postgresql).async_session_maker
-        self._async_session: AsyncSession
+    """PostgreSQL Unit of Work implementation."""
 
-    def activate(self):
+    def __init__(self) -> None:
+        """Initialize PostgreSQL Unit of Work."""
+        self._session_factory = DatabaseConfig(settings.db_url_postgresql).async_session_maker
+        self._async_session = None
+
+    def activate(self) -> None:
+        """Activate the session if not already active."""
         if not isinstance(self._async_session, AsyncSession):
             self._async_session = self._session_factory()
 
     async def __aenter__(self):
+        """Enter the context manager and activate the session."""
         self.activate()
         return self
 
@@ -98,9 +119,18 @@ class PgUnitOfWork(IUnitOfWorkBase):
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
-    ):
+    ) -> None:
+        """Exit the context manager and handle any exceptions.
+
+        Args:
+            exc_type: Exception type if an exception was raised
+            exc_val: Exception value if an exception was raised
+            exc_tb: Exception traceback if an exception was raised
+        """
         if exc_type is not None:
             await self.rollback()
+        else:
+            await self.commit()
 
         await self.close()
         if isinstance(exc_val, HTTPException):
@@ -108,70 +138,139 @@ class PgUnitOfWork(IUnitOfWorkBase):
         else:
             handle_error(exc_type, exc_val, exc_tb)
 
-    async def rollback(self):
+    async def rollback(self) -> None:
+        """Rollback the current transaction."""
         if self._async_session is None:
             raise NotCreatedSessionError
 
         await self._async_session.rollback()
 
-    async def close(self):
+    async def close(self) -> None:
+        """Close the current session."""
         if self._async_session is None:
             raise NotCreatedSessionError
         await self._async_session.close()
 
-    async def commit(self):
+    async def commit(self) -> None:
+        """Commit the current transaction."""
         if self._async_session is None:
             raise NotCreatedSessionError
         await self._async_session.commit()
 
-    async def flush(self):
+    async def flush(self) -> None:
+        """Flush the current session."""
         if self._async_session is None:
             raise NotCreatedSessionError
         await self._async_session.flush()
 
-    async def refresh(self, instance: type[ModelType]):
+    async def refresh(self, instance: type[ModelType]) -> None:
+        """Refresh the instance from the database.
+
+        Args:
+            instance: The instance to refresh
+        """
         if self._async_session is None:
             raise NotCreatedSessionError
         await self._async_session.refresh(instance)
 
     async def execute(self, statement: Executable, *args: Any):
+        """Execute a SQL statement.
+
+        Args:
+            statement: The SQL statement to execute
+            *args: Additional arguments for the statement
+
+        Returns:
+            The result of the statement execution
+        """
         if self._async_session is None:
             raise NotCreatedSessionError
         return await self._async_session.execute(statement, *args)
 
-    def add(self, instance: object):
+    def add(self, instance: object) -> None:
+        """Add an instance to the session.
+
+        Args:
+            instance: The instance to add
+        """
         if self._async_session is None:
             raise NotCreatedSessionError
         self._async_session.add(instance)
 
 
 class Query(Generic[ModelType]):
+    """Generic query builder for database operations."""
+
     def __init__(self, model: type[ModelType]) -> None:
+        """Initialize query builder.
+
+        Args:
+            model: The model class to build queries for
+        """
         self.model = model
-        self.conditions = []
+        self.conditions: list[ColumnExpressionArgument] = []
 
     def insert(self, body: dict | BaseModel) -> Insert:
+        """Create an insert statement.
+
+        Args:
+            body: The data to insert
+
+        Returns:
+            An insert statement
+        """
         if isinstance(body, BaseModel):
             body = body.model_dump()
         return insert(self.model).values(**body).returning(self.model)
 
     def update(self, *condition: ColumnExpressionArgument, body: dict | BaseModel) -> Update:
+        """Create an update statement.
+
+        Args:
+            *condition: The conditions for the update
+            body: The data to update
+
+        Returns:
+            An update statement
+        """
         if isinstance(body, BaseModel):
             body = body.model_dump()
         return update(self.model).values(**body).where(*condition).returning(self.model)
 
     def delete(self, *condition: ColumnExpressionArgument) -> Delete:
+        """Create a delete statement.
+
+        Args:
+            *condition: The conditions for the delete
+
+        Returns:
+            A delete statement
+        """
         return delete(self.model).where(*condition)
 
     def select(self, *condition: ColumnExpressionArgument) -> Select:
+        """Create a select statement.
+
+        Args:
+            *condition: The conditions for the select
+
+        Returns:
+            A select statement
+        """
         return select(self.model).where(*condition)
 
-    def make_conditions(self, conditions: BaseModel):
-        """
-        Make conditions for the query by pydantic model fields.
-        If the field is not None and the model has the field, add the condition to the query.
+    def make_conditions(self, conditions: BaseModel) -> None:
+        """Make conditions for the query by pydantic model fields.
+
+        If the field is not None and the model has the field,
+        add the condition to the query.
+
+        Args:
+            conditions: The conditions to apply
         """
         logger.info(f"Making conditions {self.model!r} {conditions=}")
+        # Clear existing conditions
+        self.conditions = []
         for key, value in conditions.model_dump().items():
             if value is not None and hasattr(self.model, key):
                 column = getattr(self.model, key, None)
@@ -184,9 +283,9 @@ class Query(Generic[ModelType]):
 
 
 class Crud(Generic[ModelType], Query[ModelType]):
-    def __init__(self, model: type[ModelType]):
+    def __init__(self, model: type[ModelType], uow: PgUnitOfWork):
         super().__init__(model=model)
-        self.uow = PgUnitOfWork()
+        self.uow = uow
 
     async def create_entity(self, payload: dict | BaseModel) -> ModelType:
         """
@@ -233,9 +332,9 @@ class Crud(Generic[ModelType], Query[ModelType]):
 
 
 class CrudEntity(Crud[ModelType]):
-    def __init__(self, model: type[ModelType]):
-        self.uow = PgUnitOfWork()
-        super().__init__(model=model)
+    def __init__(self, model: type[ModelType], uow: PgUnitOfWork):
+        self.uow = uow
+        super().__init__(model=model, uow=uow)
 
     async def get_entity(self, r_id: UUID) -> ModelType:
         model = type_cast("type[PrimaryKeyUUID]", self.model)

@@ -1,47 +1,9 @@
-import typing
 from datetime import UTC, datetime, timedelta
-from functools import total_ordering
 
 from loguru import logger
 
-VARIANT_STATE = typing.Literal["LOW", "MEDIUM", "HIGH", "UNSTAGED"]
-
-
-@total_ordering
-class State:
-    """
-    State class for traffic state.
-    """
-
-    def __init__(self, state: VARIANT_STATE) -> None:
-        self.state = state
-        self.compare_value = {
-            "UNSTAGED": -1,
-            "LOW": 0,
-            "MEDIUM": 1,
-            "HIGH": 2,
-        }
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, str):
-            return NotImplemented
-        if other not in self.compare_value:
-            return NotImplemented
-        return self.state == other
-
-    def __gt__(self, other: object) -> bool:
-        if not isinstance(other, str):
-            return NotImplemented
-        if other not in self.compare_value:
-            return NotImplemented
-        return self.compare_value[self.state] > self.compare_value[other]
-
-    def __lt__(self, other: object) -> bool:
-        if not isinstance(other, str):
-            return NotImplemented
-        if other not in self.compare_value:
-            return NotImplemented
-        return self.compare_value[self.state] < self.compare_value[other]
+from src.commons.enums import State
+from src.commons.schemas import TrafficAnalysis
 
 
 class TrafficStateManager:
@@ -53,7 +15,7 @@ class TrafficStateManager:
         self.last_state_change: datetime | None = None
         self.current_state: State = State("LOW")
         self.cooldown_minutes: int = 10
-        self._response_data = {}
+        self._response_data: TrafficAnalysis | None = None
 
     def can_change_state(self) -> bool:
         """
@@ -94,12 +56,12 @@ class TrafficStateManager:
         return datetime.now(UTC) - self.last_state_change
 
     @property
-    def response_data(self) -> dict[str, str | float | int]:
+    def response_data(self) -> TrafficAnalysis | None:
         """Get the response data."""
         return self._response_data
 
     @response_data.setter
-    def response_data(self, payload: dict[str, str | float | int]) -> None:
+    def response_data(self, payload: TrafficAnalysis) -> None:
         """Set the response data."""
         self._response_data = payload
 

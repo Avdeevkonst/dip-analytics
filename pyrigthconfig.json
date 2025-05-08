@@ -4,8 +4,7 @@
         "**/__pycache__",
         "**venv**",
         "**.ruff_cache",
-        "**alembic/versions",
-        "tests/**"
+        "**/alembic**"
     ],
     "venvPath": ".",
     "venv": ".venv",
@@ -14,4 +13,3 @@
     "pythonVersion": "3.13",
     "pythonPlatform": "Linux"
 }
-  
