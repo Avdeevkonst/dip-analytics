@@ -85,7 +85,9 @@ lint.ignore = [
     "ANN002", # missing type annotation for *args
     "ANN003", # missing type annotation for **kwargs
     "S101",
+    "B017",
     "S106",
+    "PT011",
     "S", # ignore bandit security issues in tests
     "B018", # ignore useless expressions in tests
     "PT012", # ignore complex with pytest.raises clauses

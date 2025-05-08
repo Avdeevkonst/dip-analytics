@@ -4,9 +4,10 @@ from typing import Any, TypeVar
 
 from loguru import logger
 
-from src.analitycs.handlers import traffic_state_manager
+from src.analytics.handlers import traffic_state_manager
+from src.commons.schemas import TrafficAnalysis
 
-RT = TypeVar("RT", bound=dict[str, Any])
+RT = TypeVar("RT", bound=TrafficAnalysis)
 
 
 def monitor_traffic_congestion(func: Callable[..., Coroutine[Any, Any, RT]]) -> Callable[..., Coroutine[Any, Any, RT]]:
@@ -21,7 +22,7 @@ def monitor_traffic_congestion(func: Callable[..., Coroutine[Any, Any, RT]]) -> 
             result: RT = await func(*args, **kwargs)
 
             traffic_state_manager.response_data = result
-            traffic_state_manager.update_state(result.get("congestion_level", "LOW"))
+            traffic_state_manager.update_state(result.state)
 
             return result
 

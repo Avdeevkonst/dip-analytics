@@ -2,10 +2,10 @@ from faststream import FastStream
 from faststream.kafka import KafkaBroker
 from loguru import logger
 
-from project_utils import Topics
-from src.analitycs.services import CarService, RoadConditionService, RoadService
+from src.analytics.services import CarService, RoadConditionService, RoadService
+from src.commons.schemas import CarCreate, RoadConditionCreate, RoadCreate
 from src.config import settings
-from src.schemas import CarCreate, RoadConditionCreate, RoadCreate
+from src.enums import Topics
 from src.services.kafka import serializer
 
 broker = KafkaBroker(
@@ -17,12 +17,14 @@ app = FastStream(broker)
 
 
 @broker.subscriber(Topics.CAR.value)
-async def create_car(msg: CarCreate):
+async def process_car_data(msg: CarCreate):
     """
-    Subscriber for creating a car.
+    Process car data from traffic sensors.
+    Aggregates data if car was seen by multiple sensors.
     """
-    await CarService().create_car(payload=msg)
-    logger.info(f"Car created: {msg}")
+    car_service = CarService()
+    await car_service.process_sensor_data(msg)
+    logger.info(f"Processed car data from sensor: {msg.plate_number}")
 
 
 @broker.subscriber(Topics.ROAD_CONDITION.value)

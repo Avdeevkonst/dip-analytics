@@ -10,6 +10,22 @@ services:
       - education
     volumes:
       - ./:/app
+    depends_on:
+      - postgres
+
+  postgres:
+    container_name: dip_analytics_postgres
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dip_analytics
+    ports:
+      - 5432:5432
+    networks:
+      - education
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
 networks:
   education:
@@ -18,3 +34,4 @@ networks:
 
 volumes:
   static:
+  postgres_data:
