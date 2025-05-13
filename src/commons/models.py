@@ -4,8 +4,8 @@ from uuid import UUID
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Index, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.commons.enums import Jam, Weather
 from src.commons.model_base import Base, Data, General
-from src.enums import Jam, Weather
 
 association_table = Table(
     "association_table",
@@ -60,7 +60,7 @@ class Car(General):
 
     plate_number: Mapped[str] = mapped_column(String(255), unique=True)
     model: Mapped[str] = mapped_column(String(255))
-    average_speed: Mapped[int] = mapped_column(Integer())
+    average_speed: Mapped[float] = mapped_column()
 
     road_id: Mapped[UUID] = mapped_column(ForeignKey("road.id"))
     road: Mapped["Road"] = relationship(back_populates="cars")
