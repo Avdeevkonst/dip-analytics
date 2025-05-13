@@ -2,8 +2,8 @@ from datetime import UTC, datetime, timedelta
 
 from loguru import logger
 
-from src.commons.enums import State
 from src.commons.schemas import TrafficAnalysis
+from src.commons.state import State
 
 
 class TrafficStateManager:

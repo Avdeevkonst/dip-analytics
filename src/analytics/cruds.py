@@ -46,23 +46,7 @@ class CarCrud(CrudEntity[Car]):
         Returns:
             Updated car
         """
-        # Get existing car first
-        existing_cars = await self.get_car(conditions)
-        if not existing_cars:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Car with plate number {conditions.plate_number} not found",
-            )
-        existing_car = existing_cars[0]
-
-        # Calculate new average speed
-        new_avg_speed = (existing_car.average_speed + car.average_speed) // 2
-
-        # Update car data
-        return await self.update_entity(
-            conditions,
-            car.model_copy(update={"average_speed": new_avg_speed}),
-        )
+        return await self.update_entity(conditions=conditions, payload=car)
 
     async def get_car(self, conditions: GetCar) -> list[Car]:
         """
@@ -167,10 +151,7 @@ class TrafficMeasurementCrud(CrudEntity[TrafficMeasurement]):
 
     async def delete_traffic_measurement(self, road_id: UUID) -> None:
         """Delete all traffic measurements for a road."""
-        query = select(TrafficMeasurement).where(TrafficMeasurement.road_id == road_id)
-        measurements = await self.get_by_query(query)
-        for measurement in measurements:
-            await self.delete_entity(GetTrafficMeasurement(id=measurement.id))
+        await self.delete_entity(GetTrafficMeasurement(road_id=road_id))
 
 
 class RoadCapacityCrud(CrudEntity[RoadCapacity]):
@@ -194,7 +175,4 @@ class RoadCapacityCrud(CrudEntity[RoadCapacity]):
 
     async def delete_road_capacity(self, road_id: UUID) -> None:
         """Delete road capacity information."""
-        query = select(RoadCapacity).where(RoadCapacity.road_id == road_id)
-        capacities = await self.get_by_query(query)
-        for capacity in capacities:
-            await self.delete_entity(GetRoadCapacity(id=capacity.id))
+        await self.delete_entity(GetRoadCapacity(road_id=road_id))

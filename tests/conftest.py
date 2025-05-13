@@ -9,9 +9,9 @@ from httpx import AsyncClient
 from sqlalchemy import NullPool
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from src.commons.enums import Jam, Weather
 from src.commons.models import Base, Car, Road, RoadCapacity, RoadCondition, TrafficMeasurement
 from src.commons.schemas import CarCreate, RoadConditionCreate
-from src.enums import Jam, Weather
 
 # Test database URL
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:avdeev97@172.18.0.2:5432/dip_analytics"

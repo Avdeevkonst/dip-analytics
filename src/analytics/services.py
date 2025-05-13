@@ -10,8 +10,9 @@ from src.analytics.cruds import (
     RoadCrud,
     TrafficMeasurementCrud,
 )
-from src.commons.enums import State
+from src.commons.decorators import monitor_traffic_congestion
 from src.commons.models import Car, Road, RoadCondition
+from src.commons.project_protocols import HasAverageSpeed
 from src.commons.schemas import (
     CarCreate,
     GetCar,
@@ -23,7 +24,7 @@ from src.commons.schemas import (
     TrafficAnalysis,
     TrafficMeasurementCreate,
 )
-from src.decorators import monitor_traffic_congestion
+from src.commons.state import State
 from src.services.db import PgUnitOfWork
 
 
@@ -34,6 +35,7 @@ class CarService:
         self.uow: PgUnitOfWork = PgUnitOfWork()
         self.crud: CarCrud = CarCrud(uow=self.uow)
         self.traffic_analyzer = TrafficAnalysisService()
+        self.window_size = 5  # minutes
 
     async def process_sensor_data(self, payload: CarCreate) -> Car:
         """Process incoming sensor data and update car information.
@@ -51,7 +53,7 @@ class CarService:
             if cars:
                 # Calculate new average speed
                 existing_car = cars[0]
-                new_speed = (existing_car.average_speed + payload.average_speed) // 2
+                new_speed = _average_speed(cars, self.window_size)  # pyright: ignore[reportArgumentType]
                 payload.average_speed = new_speed
 
                 # Update car data
@@ -86,10 +88,10 @@ class CarService:
         async with self.uow:
             return await self.crud.get_many(GetCar(road_id=road_id))
 
-    async def get_recent_cars(self, minutes: int = 5) -> list[Car]:
+    async def get_recent_cars(self, minutes: int = 5, road_id: UUID | None = None) -> list[Car]:
         """Get cars updated within the last N minutes."""
         async with self.uow:
-            return await self.crud.get_car_by_time_range(GetCarByTimeRange(range_time=minutes))
+            return await self.crud.get_car_by_time_range(GetCarByTimeRange(range_time=minutes, road_id=road_id))
 
     async def delete_car(self, conditions: GetCar) -> None:
         """Delete a car record."""
@@ -195,7 +197,9 @@ class TrafficAnalysisService:
 
             if not measurements:
                 # Get cars on the road to determine initial state
-                cars = await self.car_crud.get_many(GetCar(road_id=road_id))
+                cars = await self.car_crud.get_car_by_time_range(
+                    GetCarByTimeRange(range_time=self.window_size, road_id=road_id)
+                )
                 if not cars:
                     return TrafficAnalysis(
                         current_speed=0,
@@ -207,7 +211,7 @@ class TrafficAnalysisService:
                     )
 
                 # Calculate initial state from current cars
-                avg_speed = sum(car.average_speed for car in cars) / len(cars)
+                avg_speed = _average_speed(cars, self.window_size)  # pyright: ignore[reportArgumentType]
                 flow_rate = len(cars) * 3600  # cars per hour
                 density = len(cars) / capacity.lanes  # cars per lane
                 congestion_level = density / capacity.max_capacity
@@ -227,7 +231,7 @@ class TrafficAnalysisService:
 
             congestion_level = latest.density / capacity.max_capacity
             return TrafficAnalysis(
-                current_speed=latest.average_speed,
+                current_speed=_average_speed(measurements, self.window_size),  # pyright: ignore[reportArgumentType]
                 flow_rate=latest.flow_rate,
                 density=latest.density,
                 congestion_level=congestion_level,
@@ -301,3 +305,29 @@ class TrafficAnalysisService:
             )
 
             await self.traffic_crud.create_measurement(measurement)
+
+
+def _moving_average(data: list[float], window: int) -> list[float]:
+    """Вычислить центральное скользящее среднее для списка data с заданным окном."""
+    if window < 1:
+        return data
+    half = window // 2
+    result = []
+    for i in range(len(data)):
+        start = max(0, i - half)
+        end = min(len(data), i + half + 1)
+        subset = data[start:end]
+        avg = sum(subset) / len(subset)
+        result.append(avg)
+    return result
+
+
+def _average_speed(items: list[HasAverageSpeed], window_size: int) -> float:
+    """Calculate the average speed of a list of items."""
+
+    return sum(
+        _moving_average(
+            data=[item.average_speed for item in items],
+            window=window_size,
+        )
+    ) / len(items)

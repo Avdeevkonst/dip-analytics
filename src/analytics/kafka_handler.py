@@ -3,9 +3,9 @@ from faststream.kafka import KafkaBroker
 from loguru import logger
 
 from src.analytics.services import CarService, RoadConditionService, RoadService
+from src.commons.enums import Topics
 from src.commons.schemas import CarCreate, RoadConditionCreate, RoadCreate
 from src.config import settings
-from src.enums import Topics
 from src.services.kafka import serializer
 
 broker = KafkaBroker(

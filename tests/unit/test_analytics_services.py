@@ -5,13 +5,13 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from commons.state import State
 from src.analytics.services import (
     CarService,
     RoadConditionService,
     RoadService,
     TrafficAnalysisService,
 )
-from src.commons.enums import State
 from src.commons.models import Car, Road, RoadCondition
 from src.commons.schemas import (
     CarCreate,

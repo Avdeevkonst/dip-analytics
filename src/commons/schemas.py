@@ -4,8 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt
 
-from src.commons.enums import State
-from src.enums import Jam, Sort, Weather
+from src.commons.enums import Jam, Sort, Weather
+from src.commons.state import State
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -34,16 +34,7 @@ class CarCreate(BaseModel):
     plate_number: str = Field(..., description="Car plate number")
     road_id: UUID
     model: str = Field(..., description="Car model")
-    average_speed: int = Field(..., ge=0, description="Current speed from sensor")
-
-
-class CarAggregatedData(FromAttr):
-    """Aggregated car data from multiple sensors."""
-
-    plate_number: str = Field(..., description="Car plate number")
-    model: str = Field(..., description="Car model")
-    average_speed: int = Field(..., ge=0, description="Average speed from all sensors")
-    last_update: datetime = Field(default_factory=lambda: datetime.now())
+    average_speed: float = Field(..., ge=0, description="Current speed from sensor")
 
 
 class GetCar(BaseModel):
@@ -55,6 +46,7 @@ class GetCar(BaseModel):
 
 class GetCarByTimeRange(BaseModel):
     range_time: PositiveInt
+    road_id: UUID | None
 
 
 class Pagination(BaseModel):
