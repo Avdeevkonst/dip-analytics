@@ -74,11 +74,12 @@ class RoadAdmin(ModelView, model=Road):
     can_delete = True
     can_view_details = True
 
-    def on_model_change(self, data: dict, model: Road, is_created: bool) -> None:
+    async def on_model_change(self, data: dict, model: Road, is_created: bool, request: Request) -> None:
         """Log changes to road records."""
         model.updated_at = datetime.now()
         action = "Created" if is_created else "Updated"
         logger.info(f"{action} road: {model.name}")
+        await super().on_model_change(data, model, is_created, request)
 
 
 class RoadConditionAdmin(ModelView, model=RoadCondition):
@@ -105,11 +106,12 @@ class RoadConditionAdmin(ModelView, model=RoadCondition):
     can_delete = True
     can_view_details = True
 
-    def on_model_change(self, data: dict, model: RoadCondition, is_created: bool) -> None:
+    async def on_model_change(self, data: dict, model: RoadCondition, is_created: bool, request: Request) -> None:
         """Log changes to road condition records."""
         model.updated_at = datetime.now()
         action = "Created" if is_created else "Updated"
         logger.info(f"{action} road condition: {model.name}")
+        await super().on_model_change(data, model, is_created, request)
 
 
 def setup_admin(app: FastAPI) -> None:

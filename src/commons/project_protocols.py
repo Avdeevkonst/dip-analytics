@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from sqlalchemy import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class HasAverageSpeed(Protocol):
